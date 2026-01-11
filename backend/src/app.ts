@@ -14,7 +14,7 @@ const app = express();
 // Middleware
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'
-        ? ['https://your-frontend.vercel.app']
+        ? ['https://yt-playlist-infografphic.vercel.app', 'https://yt-playlist-infografphic-*.vercel.app']
         : ['http://localhost:3001', 'http://localhost:5173'],
     credentials: true,
 }));

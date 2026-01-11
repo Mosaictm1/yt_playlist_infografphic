@@ -18,7 +18,7 @@ interface TranscriptResponse {
 export class TranscriptService {
     private readonly apifyToken: string;
     // Using a more reliable transcript scraper
-    private readonly scraperUrl = 'https://api.apify.com/v2/acts/bernhardksf~youtube-transcript-scraper/run-sync-get-dataset-items';
+    private readonly scraperUrl = 'https://api.apify.com/v2/acts/pintostudio~youtube-transcript-scraper/run-sync-get-dataset-items';
 
     constructor() {
         this.apifyToken = env.APIFY_API_TOKEN;
@@ -31,40 +31,29 @@ export class TranscriptService {
         try {
             console.log(`[Transcript] Fetching transcript for: ${videoUrl}`);
 
-            const response = await axios.post<TranscriptResponse[]>(
+            const response = await axios.post<{ data: TranscriptSegment[] }[]>(
                 `${this.scraperUrl}?token=${this.apifyToken}`,
-                {
-                    startUrls: [{ url: videoUrl }],
-                    maxResults: 1
-                },
+                { videoUrl },
                 { timeout: 120000 }
             );
 
-            console.log(`[Transcript] Response received:`, JSON.stringify(response.data).substring(0, 500));
+            console.log(`[Transcript] Response received, items: ${response.data?.length}`);
 
             if (!response.data || response.data.length === 0) {
                 throw new Error('No transcript data received');
             }
 
-            // Handle different response formats
-            const item = response.data[0];
-            let fullTranscript = '';
-
-            if (typeof item.transcript === 'string') {
-                fullTranscript = item.transcript;
-            } else if (Array.isArray(item.transcript)) {
-                fullTranscript = item.transcript.map(s => s.text?.trim() || '').join(' ');
-            } else if (Array.isArray(item.data)) {
-                fullTranscript = item.data.map(s => s.text?.trim() || '').join(' ');
-            } else if (item.text) {
-                fullTranscript = item.text;
-            }
+            // Combine all transcript segments into one text
+            const transcriptData = response.data[0]?.data || [];
+            const fullTranscript = transcriptData
+                .map(segment => segment.text.trim())
+                .join(' ');
 
             if (!fullTranscript) {
                 throw new Error('Could not extract transcript from response');
             }
 
-            console.log(`[Transcript] Successfully extracted ${fullTranscript.length} characters`);
+            console.log(`[Transcript] Extracted ${fullTranscript.length} characters`);
             return fullTranscript;
         } catch (error: any) {
             console.error('Error getting transcript:', error.message);

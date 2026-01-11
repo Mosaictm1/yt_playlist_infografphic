@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Playlist {
+  id         String   @id @default(uuid())
+  url        String   @unique
+  title      String?
+  videoCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  videos Video[]
+}
+
+model Video {
+  id         String  @id @default(uuid())
+  videoId    String  @unique
+  title      String
+  thumbnail  String?
+  duration   String?
+  url        String
+  transcript String? @db.Text
+
+  playlistId String
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  infographic Infographic?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([playlistId])
+}
+
+model Infographic {
+  id             String  @id @default(uuid())
+  imageUrl       String
+  analysisReport String? @db.Text
+  designPrompt   String? @db.Text
+  status         Status  @default(PENDING)
+
+  videoId String @unique
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProcessingJob {
+  id         String   @id @default(uuid())
+  playlistId String
+  videoIds   String[]
+  status     Status   @default(PENDING)
+  progress   Int      @default(0)
+  error      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Status {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}

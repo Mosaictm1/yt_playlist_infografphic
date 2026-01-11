@@ -3,6 +3,7 @@ import cors from 'cors';
 import { env, validateEnv } from './config/env.js';
 import playlistRoutes from './routes/playlist.routes.js';
 import infographicRoutes from './routes/infographic.routes.js';
+import authRoutes from './routes/auth.routes.js';
 import { infographicController } from './controllers/index.js';
 
 // Validate environment variables
@@ -25,6 +26,7 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/playlist', playlistRoutes);
 app.use('/api/playlists', playlistRoutes);
 app.use('/api/infographic', infographicRoutes);

@@ -8,6 +8,29 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum Plan {
+  FREE
+  PAID
+}
+
+model User {
+  id            String   @id @default(uuid())
+  supabaseId    String   @unique
+  email         String   @unique
+  name          String?
+  plan          Plan     @default(FREE)
+  
+  // API Keys for FREE plan users
+  apifyApiToken     String?
+  geminiApiKey      String?
+  atlasCloudApiKey  String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  playlists     Playlist[]
+}
+
 model Playlist {
   id         String   @id @default(uuid())
   url        String   @unique
@@ -16,7 +39,12 @@ model Playlist {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+
   videos Video[]
+
+  @@index([userId])
 }
 
 model Video {
@@ -71,3 +99,4 @@ enum Status {
   COMPLETED
   FAILED
 }
+

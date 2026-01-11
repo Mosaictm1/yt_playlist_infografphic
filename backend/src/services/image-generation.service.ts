@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { env } from '../config/env.js';
 
 interface ImageGenerationResponse {
     data: {
@@ -8,17 +7,12 @@ interface ImageGenerationResponse {
 }
 
 export class ImageGenerationService {
-    private readonly apiKey: string;
     private readonly baseUrl = 'https://api.atlascloud.ai/api/v1/model/generateImage';
-
-    constructor() {
-        this.apiKey = env.ATLAS_CLOUD_API_KEY;
-    }
 
     /**
      * Generate an infographic image from a design prompt
      */
-    async generateImage(prompt: string): Promise<string> {
+    async generateImage(prompt: string, atlasCloudApiKey: string): Promise<string> {
         try {
             const response = await axios.post<ImageGenerationResponse>(
                 this.baseUrl,
@@ -32,7 +26,7 @@ export class ImageGenerationService {
                 },
                 {
                     headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Authorization': `Bearer ${atlasCloudApiKey}`,
                         'Content-Type': 'application/json',
                     },
                     timeout: 180000, // 3 minutes timeout for image generation

@@ -1,20 +1,15 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { env } from '../config/env.js';
 
 export class AIAnalysisService {
-    private readonly genAI: GoogleGenerativeAI;
     private readonly model: string = 'gemini-2.5-flash';
-
-    constructor() {
-        this.genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-    }
 
     /**
      * Analyze transcript and extract key points
      */
-    async analyzeContent(transcript: string): Promise<string> {
+    async analyzeContent(transcript: string, geminiApiKey: string): Promise<string> {
         try {
-            const model = this.genAI.getGenerativeModel({ model: this.model });
+            const genAI = new GoogleGenerativeAI(geminiApiKey);
+            const model = genAI.getGenerativeModel({ model: this.model });
 
             const prompt = `قم بإعطائي تقرير مفصل لنقاط الإفادة التي تم ذكرها في هذا النص:
 
@@ -41,9 +36,10 @@ ${transcript}
     /**
      * Generate infographic design prompt
      */
-    async generateDesignPrompt(analysisReport: string): Promise<string> {
+    async generateDesignPrompt(analysisReport: string, geminiApiKey: string): Promise<string> {
         try {
-            const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            const genAI = new GoogleGenerativeAI(geminiApiKey);
+            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
             const prompt = `Based on this analysis report, generate a detailed infographic design prompt in English that can be used with an AI image generator.
 
@@ -73,3 +69,4 @@ Keep it under 500 words.`;
 }
 
 export const aiAnalysisService = new AIAnalysisService();
+

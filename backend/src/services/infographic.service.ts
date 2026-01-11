@@ -4,11 +4,23 @@ import { aiAnalysisService } from './ai-analysis.service.js';
 import { imageGenerationService } from './image-generation.service.js';
 import { Status } from '@prisma/client';
 
+// Interface for API keys passed from middleware
+export interface ApiKeys {
+    geminiApiKey: string;
+    atlasCloudApiKey: string;
+}
+
 export class InfographicService {
+    // In-memory storage for job API keys (cleared after job completes)
+    private jobApiKeys: Map<string, ApiKeys> = new Map();
+
     /**
      * Create a processing job for selected videos
+     * @param playlistId - The playlist ID
+     * @param videoIds - Array of video IDs to process
+     * @param apiKeys - API keys to use for this job (from user or system based on plan)
      */
-    async createJob(playlistId: string, videoIds: string[]) {
+    async createJob(playlistId: string, videoIds: string[], apiKeys: ApiKeys) {
         const job = await prisma.processingJob.create({
             data: {
                 playlistId,
@@ -17,6 +29,9 @@ export class InfographicService {
                 progress: 0,
             },
         });
+
+        // Store API keys for this job in memory
+        this.jobApiKeys.set(job.id, apiKeys);
 
         // Start processing in background
         this.processJob(job.id).catch(console.error);
@@ -36,6 +51,12 @@ export class InfographicService {
             throw new Error('Job not found');
         }
 
+        // Get API keys for this job
+        const apiKeys = this.jobApiKeys.get(jobId);
+        if (!apiKeys) {
+            throw new Error('API keys not found for job');
+        }
+
         // Update job status to processing
         await prisma.processingJob.update({
             where: { id: jobId },
@@ -53,7 +74,7 @@ export class InfographicService {
                     data: { currentVideoId: videoId, currentStep: 'starting' },
                 });
 
-                await this.generateInfographic(videoId, jobId);
+                await this.generateInfographic(videoId, jobId, apiKeys);
                 processedCount++;
 
                 // Update progress
@@ -78,6 +99,9 @@ export class InfographicService {
             }
         }
 
+        // Clean up API keys from memory
+        this.jobApiKeys.delete(jobId);
+
         // Update job status to completed
         await prisma.processingJob.update({
             where: { id: jobId },
@@ -93,7 +117,7 @@ export class InfographicService {
     /**
      * Generate infographic for a single video
      */
-    async generateInfographic(videoId: string, jobId?: string) {
+    async generateInfographic(videoId: string, jobId?: string, apiKeys?: ApiKeys) {
         // Helper to update current step
         const updateStep = async (step: string) => {
             if (jobId) {
@@ -125,6 +149,11 @@ export class InfographicService {
             },
         });
 
+        // Ensure we have API keys
+        if (!apiKeys) {
+            throw new Error('API keys are required for infographic generation');
+        }
+
         try {
             // Step 1: Get transcript
             await updateStep('Getting transcript...');
@@ -132,15 +161,15 @@ export class InfographicService {
 
             // Step 2: Analyze content
             await updateStep('Analyzing content...');
-            const analysisReport = await aiAnalysisService.analyzeContent(transcript);
+            const analysisReport = await aiAnalysisService.analyzeContent(transcript, apiKeys.geminiApiKey);
 
             // Step 3: Generate design prompt
             await updateStep('Generating design prompt...');
-            const designPrompt = await aiAnalysisService.generateDesignPrompt(analysisReport);
+            const designPrompt = await aiAnalysisService.generateDesignPrompt(analysisReport, apiKeys.geminiApiKey);
 
             // Step 4: Generate image
             await updateStep('Generating image...');
-            const imageUrl = await imageGenerationService.generateImage(designPrompt);
+            const imageUrl = await imageGenerationService.generateImage(designPrompt, apiKeys.atlasCloudApiKey);
 
             // Step 5: Save infographic
             await updateStep('Saving...');

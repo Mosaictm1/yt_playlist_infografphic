@@ -16,7 +16,20 @@ export class InfographicController {
         try {
             const { playlistId, videoIds } = generateSchema.parse(req.body);
 
-            const job = await infographicService.createJob(playlistId, videoIds);
+            // Get API keys from middleware (based on user plan)
+            const apiKeys = req.apiKeys;
+            if (!apiKeys?.geminiApiKey || !apiKeys?.atlasCloudApiKey) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'API keys required',
+                    message: 'Gemini و Atlas Cloud مفاتيح مطلوبة لإنشاء Infographics',
+                });
+            }
+
+            const job = await infographicService.createJob(playlistId, videoIds, {
+                geminiApiKey: apiKeys.geminiApiKey,
+                atlasCloudApiKey: apiKeys.atlasCloudApiKey,
+            });
 
             res.status(202).json({
                 success: true,

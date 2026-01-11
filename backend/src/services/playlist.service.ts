@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { env } from '../config/env.js';
 import prisma from '../config/prisma.js';
 
 interface ApifyVideoItem {
@@ -15,21 +14,18 @@ interface ApifyVideoItem {
 }
 
 export class PlaylistService {
-    private readonly apifyToken: string;
     private readonly scraperUrl = 'https://api.apify.com/v2/acts/grandmaster~youtube-playlist-scraper---lightning-fast-low-cost/run-sync-get-dataset-items';
-
-    constructor() {
-        this.apifyToken = env.APIFY_API_TOKEN;
-    }
 
     /**
      * Extract videos from a YouTube playlist URL
+     * @param playlistUrl - The YouTube playlist URL
+     * @param apifyApiToken - The Apify API token (from user or system based on plan)
      */
-    async extractPlaylist(playlistUrl: string) {
+    async extractPlaylist(playlistUrl: string, apifyApiToken: string) {
         try {
-            // Call Apify to scrape the playlist
+            // Call Apify to scrape the playlist using the provided token
             const response = await axios.post<ApifyVideoItem[]>(
-                `${this.scraperUrl}?token=${this.apifyToken}`,
+                `${this.scraperUrl}?token=${apifyApiToken}`,
                 {
                     start_urls: [playlistUrl]
                 },

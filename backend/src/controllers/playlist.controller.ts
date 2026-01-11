@@ -18,7 +18,16 @@ export class PlaylistController {
         try {
             const { url } = extractPlaylistSchema.parse(req.body);
 
-            const result = await playlistService.extractPlaylist(url);
+            // Get API key from middleware (based on user plan)
+            const apifyApiToken = req.apiKeys?.apifyApiToken;
+            if (!apifyApiToken) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'Apify API token is required',
+                });
+            }
+
+            const result = await playlistService.extractPlaylist(url, apifyApiToken);
 
             res.status(200).json({
                 success: true,

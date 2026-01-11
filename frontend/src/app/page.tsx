@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ import {
     generateInfographics,
     getJobStatus,
     getPlaylistInfographics,
+    getPlaylist,
     Playlist,
     ProcessingJob,
     Infographic
@@ -19,7 +20,8 @@ import {
     VideoGrid,
     InfographicGallery,
     LoadingState,
-    ProgressBar
+    ProgressBar,
+    ProcessingSteps
 } from '@/components';
 import { Sparkles, ArrowLeft, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,11 +29,53 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function Home() {
     const { user, loading, signOut } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [playlist, setPlaylist] = useState<Playlist | null>(null);
     const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
     const [currentJob, setCurrentJob] = useState<ProcessingJob | null>(null);
     const [infographics, setInfographics] = useState<Infographic[]>([]);
+    const [isRestoring, setIsRestoring] = useState(true);
+
+    // Update URL when playlist changes
+    const updateUrl = useCallback((playlistId?: string, jobId?: string) => {
+        const params = new URLSearchParams();
+        if (playlistId) params.set('playlist', playlistId);
+        if (jobId) params.set('job', jobId);
+        const newUrl = params.toString() ? `?${params.toString()}` : '/';
+        window.history.replaceState({}, '', newUrl);
+    }, []);
+
+    // Restore state from URL on mount
+    useEffect(() => {
+        const restoreState = async () => {
+            const playlistId = searchParams.get('playlist');
+            const jobId = searchParams.get('job');
+
+            if (playlistId) {
+                try {
+                    const restoredPlaylist = await getPlaylist(playlistId);
+                    setPlaylist(restoredPlaylist);
+
+                    // Also fetch infographics
+                    const infos = await getPlaylistInfographics(playlistId);
+                    setInfographics(infos);
+
+                    if (jobId) {
+                        const job = await getJobStatus(jobId);
+                        if (job.status === 'PROCESSING' || job.status === 'PENDING') {
+                            setCurrentJob(job);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to restore state:', error);
+                }
+            }
+            setIsRestoring(false);
+        };
+
+        restoreState();
+    }, [searchParams]);
 
     // Redirect to login if not authenticated
     useEffect(() => {
@@ -46,6 +90,7 @@ export default function Home() {
         onSuccess: (data) => {
             setPlaylist(data);
             setSelectedVideoIds([]);
+            updateUrl(data.id);
         },
     });
 
@@ -55,6 +100,9 @@ export default function Home() {
             generateInfographics(playlistId, videoIds),
         onSuccess: (job) => {
             setCurrentJob(job);
+            if (playlist) {
+                updateUrl(playlist.id, job.id);
+            }
         },
     });
 
@@ -103,6 +151,7 @@ export default function Home() {
         setSelectedVideoIds([]);
         setCurrentJob(null);
         setInfographics([]);
+        updateUrl(); // Clear URL params
     };
 
     const handleSignOut = async () => {
@@ -111,7 +160,7 @@ export default function Home() {
     };
 
     // Loading state
-    if (loading) {
+    if (loading || isRestoring) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
                 <div className="text-white text-xl">جاري التحميل...</div>
@@ -263,9 +312,9 @@ export default function Home() {
                                     <h3 className="text-lg font-semibold text-white mb-4">
                                         جاري إنشاء Infographics...
                                     </h3>
-                                    <ProgressBar
+                                    <ProcessingSteps
                                         progress={currentJob.progress}
-                                        label={`معالجة ${Math.ceil((currentJob.progress / 100) * selectedVideoIds.length)} من ${selectedVideoIds.length}`}
+                                        videoTitle={playlist.videos.find(v => selectedVideoIds.includes(v.id))?.title}
                                     />
                                 </motion.div>
                             )}

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
@@ -19,13 +21,24 @@ import {
     LoadingState,
     ProgressBar
 } from '@/components';
-import { Sparkles, ArrowLeft } from 'lucide-react';
+import { Sparkles, ArrowLeft, Settings, LogOut } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
+    const { user, loading, signOut } = useAuth();
+    const router = useRouter();
+
     const [playlist, setPlaylist] = useState<Playlist | null>(null);
     const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
     const [currentJob, setCurrentJob] = useState<ProcessingJob | null>(null);
     const [infographics, setInfographics] = useState<Infographic[]>([]);
+
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!loading && !user) {
+            router.push('/login');
+        }
+    }, [loading, user, router]);
 
     // Extract playlist mutation
     const extractMutation = useMutation({
@@ -92,6 +105,29 @@ export default function Home() {
         setInfographics([]);
     };
 
+    const handleSignOut = async () => {
+        await signOut();
+        router.push('/login');
+    };
+
+    // Loading state
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+                <div className="text-white text-xl">جاري التحميل...</div>
+            </div>
+        );
+    }
+
+    // Not authenticated
+    if (!user) {
+        return null;
+    }
+
+    // Check if FREE user needs API keys
+    const needsApiKeys = user.plan === 'FREE' &&
+        (!user.hasApiKeys.apifyApiToken || !user.hasApiKeys.geminiApiKey || !user.hasApiKeys.atlasCloudApiKey);
+
     return (
         <main className="min-h-screen">
             {/* Header */}
@@ -106,19 +142,54 @@ export default function Home() {
                         </h1>
                     </div>
 
-                    {playlist && (
-                        <motion.button
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            onClick={handleReset}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg glass glass-hover transition-all text-sm"
+                    <div className="flex items-center gap-3">
+                        {playlist && (
+                            <motion.button
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                onClick={handleReset}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg glass glass-hover transition-all text-sm"
+                            >
+                                <ArrowLeft className="w-4 h-4" />
+                                <span>قائمة جديدة</span>
+                            </motion.button>
+                        )}
+
+                        <Link
+                            href="/settings"
+                            className="p-2 rounded-lg glass glass-hover transition-all"
+                            title="الإعدادات"
                         >
-                            <ArrowLeft className="w-4 h-4" />
-                            <span>قائمة جديدة</span>
-                        </motion.button>
-                    )}
+                            <Settings className="w-5 h-5 text-gray-400" />
+                        </Link>
+
+                        <button
+                            onClick={handleSignOut}
+                            className="p-2 rounded-lg glass glass-hover transition-all"
+                            title="تسجيل الخروج"
+                        >
+                            <LogOut className="w-5 h-5 text-gray-400" />
+                        </button>
+                    </div>
                 </div>
             </header>
+
+            {/* API Keys Warning */}
+            {needsApiKeys && (
+                <div className="bg-yellow-500/20 border-b border-yellow-500/30">
+                    <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+                        <p className="text-yellow-300 text-sm">
+                            ⚠️ الخطة المجانية تتطلب إدخال API keys الخاصة بك لاستخدام التطبيق
+                        </p>
+                        <Link
+                            href="/settings"
+                            className="px-4 py-1 bg-yellow-500/30 rounded-lg text-yellow-200 text-sm hover:bg-yellow-500/40 transition-colors"
+                        >
+                            إضافة المفاتيح
+                        </Link>
+                    </div>
+                </div>
+            )}
 
             {/* Main content */}
             <div className="container mx-auto px-4 py-8">

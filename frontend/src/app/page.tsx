@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,7 +26,25 @@ import {
 import { Sparkles, ArrowLeft, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Loading fallback for Suspense
+function HomeLoading() {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+            <div className="text-white text-xl">جاري التحميل...</div>
+        </div>
+    );
+}
+
+// Main page wrapper with Suspense
 export default function Home() {
+    return (
+        <Suspense fallback={<HomeLoading />}>
+            <HomeContent />
+        </Suspense>
+    );
+}
+
+function HomeContent() {
     const { user, loading, signOut } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();

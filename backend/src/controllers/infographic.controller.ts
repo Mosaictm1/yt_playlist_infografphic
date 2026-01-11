@@ -139,6 +139,36 @@ export class InfographicController {
             });
         }
     }
+
+    /**
+     * GET /api/infographic/jobs
+     * Get all jobs for the authenticated user
+     */
+    async getUserJobs(req: Request, res: Response) {
+        try {
+            const userId = req.user?.id;
+            if (!userId) {
+                return res.status(401).json({
+                    success: false,
+                    error: 'User not authenticated',
+                });
+            }
+
+            const jobs = await infographicService.getUserJobs(userId);
+
+            res.status(200).json({
+                success: true,
+                data: jobs,
+            });
+        } catch (error) {
+            console.error('Error getting user jobs:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Failed to get user jobs',
+            });
+        }
+    }
 }
 
 export const infographicController = new InfographicController();
+

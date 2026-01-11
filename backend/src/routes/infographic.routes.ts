@@ -12,6 +12,9 @@ router.post('/generate', authMiddleware, apiKeysMiddleware, (req, res) => infogr
 // GET /api/infographic/job/:jobId - Get job status
 router.get('/job/:jobId', authMiddleware, (req, res) => infographicController.getJobStatus(req, res));
 
+// GET /api/infographic/jobs - Get all jobs for user (History)
+router.get('/jobs', authMiddleware, (req, res) => infographicController.getUserJobs(req, res));
+
 // GET /api/infographic/:videoId - Get infographic for video
 router.get('/:videoId', authMiddleware, (req, res) => infographicController.getInfographic(req, res));
 

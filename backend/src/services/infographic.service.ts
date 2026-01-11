@@ -237,6 +237,37 @@ export class InfographicService {
             orderBy: { createdAt: 'desc' },
         });
     }
+
+    /**
+     * Get all jobs for a user (by playlist ownership)
+     */
+    async getUserJobs(userId: string) {
+        // First get playlists owned by this user
+        const userPlaylists = await prisma.playlist.findMany({
+            where: { userId },
+            select: { id: true },
+        });
+
+        const playlistIds = userPlaylists.map(p => p.id);
+
+        return prisma.processingJob.findMany({
+            where: {
+                playlistId: { in: playlistIds },
+            },
+            include: {
+                playlist: {
+                    select: {
+                        id: true,
+                        title: true,
+                        url: true,
+                        videoCount: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
 }
 
 export const infographicService = new InfographicService();
+

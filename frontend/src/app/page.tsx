@@ -23,7 +23,7 @@ import {
     ProgressBar,
     ProcessingSteps
 } from '@/components';
-import { Sparkles, ArrowLeft, Settings, LogOut } from 'lucide-react';
+import { Sparkles, ArrowLeft, Settings, LogOut, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Loading fallback for Suspense
@@ -221,6 +221,14 @@ function HomeContent() {
                                 <span>قائمة جديدة</span>
                             </motion.button>
                         )}
+
+                        <Link
+                            href="/history"
+                            className="p-2 rounded-lg glass glass-hover transition-all"
+                            title="السجل"
+                        >
+                            <Clock className="w-5 h-5 text-gray-400" />
+                        </Link>
 
                         <Link
                             href="/settings"

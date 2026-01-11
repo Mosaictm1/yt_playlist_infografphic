@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { supabase as getSupabase } from '@/contexts/AuthContext';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -8,6 +9,19 @@ export const api = axios.create({
         'Content-Type': 'application/json',
     },
 });
+
+// Add auth token to all requests
+api.interceptors.request.use(async (config) => {
+    const supabase = getSupabase();
+    if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+            config.headers.Authorization = `Bearer ${session.access_token}`;
+        }
+    }
+    return config;
+});
+
 
 // Types
 export interface Video {

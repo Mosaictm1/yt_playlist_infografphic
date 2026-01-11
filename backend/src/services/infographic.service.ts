@@ -242,30 +242,36 @@ export class InfographicService {
      * Get all jobs for a user (by playlist ownership)
      */
     async getUserJobs(userId: string) {
-        // First get playlists owned by this user
+        // First get playlists owned by this user with all needed fields
         const userPlaylists = await prisma.playlist.findMany({
             where: { userId },
-            select: { id: true },
+            select: {
+                id: true,
+                title: true,
+                url: true,
+                videoCount: true,
+            },
         });
 
-        const playlistIds = userPlaylists.map(p => p.id);
+        if (userPlaylists.length === 0) {
+            return [];
+        }
 
-        return prisma.processingJob.findMany({
+        const playlistIds = userPlaylists.map(p => p.id);
+        const playlistMap = new Map(userPlaylists.map(p => [p.id, p]));
+
+        const jobs = await prisma.processingJob.findMany({
             where: {
                 playlistId: { in: playlistIds },
             },
-            include: {
-                playlist: {
-                    select: {
-                        id: true,
-                        title: true,
-                        url: true,
-                        videoCount: true,
-                    },
-                },
-            },
             orderBy: { createdAt: 'desc' },
         });
+
+        // Combine jobs with playlist info
+        return jobs.map(job => ({
+            ...job,
+            playlist: playlistMap.get(job.playlistId) || null,
+        }));
     }
 }
 

@@ -60,6 +60,8 @@ export interface ProcessingJob {
     videoIds: string[];
     status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
     progress: number;
+    currentStep: string | null;
+    currentVideoId: string | null;
     error: string | null;
 }
 

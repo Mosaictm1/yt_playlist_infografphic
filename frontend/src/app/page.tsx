@@ -332,7 +332,8 @@ function HomeContent() {
                                     </h3>
                                     <ProcessingSteps
                                         progress={currentJob.progress}
-                                        videoTitle={playlist.videos.find(v => selectedVideoIds.includes(v.id))?.title}
+                                        currentStep={currentJob.currentStep || undefined}
+                                        videoTitle={playlist.videos.find(v => currentJob.currentVideoId === v.id || selectedVideoIds.includes(v.id))?.title}
                                     />
                                 </motion.div>
                             )}

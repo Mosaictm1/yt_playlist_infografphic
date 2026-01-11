@@ -47,7 +47,13 @@ export class InfographicService {
 
         for (const videoId of job.videoIds) {
             try {
-                await this.generateInfographic(videoId);
+                // Update current video being processed
+                await prisma.processingJob.update({
+                    where: { id: jobId },
+                    data: { currentVideoId: videoId, currentStep: 'starting' },
+                });
+
+                await this.generateInfographic(videoId, jobId);
                 processedCount++;
 
                 // Update progress
@@ -78,6 +84,8 @@ export class InfographicService {
             data: {
                 status: 'COMPLETED',
                 progress: 100,
+                currentStep: 'completed',
+                currentVideoId: null,
             },
         });
     }
@@ -85,7 +93,18 @@ export class InfographicService {
     /**
      * Generate infographic for a single video
      */
-    async generateInfographic(videoId: string) {
+    async generateInfographic(videoId: string, jobId?: string) {
+        // Helper to update current step
+        const updateStep = async (step: string) => {
+            if (jobId) {
+                await prisma.processingJob.update({
+                    where: { id: jobId },
+                    data: { currentStep: step },
+                });
+            }
+            console.log(`[${videoId}] ${step}`);
+        };
+
         // Check if infographic already exists
         const existing = await prisma.infographic.findUnique({
             where: { videoId },
@@ -108,22 +127,23 @@ export class InfographicService {
 
         try {
             // Step 1: Get transcript
-            console.log(`[${videoId}] Getting transcript...`);
+            await updateStep('Getting transcript...');
             const transcript = await transcriptService.processVideoTranscript(videoId);
 
             // Step 2: Analyze content
-            console.log(`[${videoId}] Analyzing content...`);
+            await updateStep('Analyzing content...');
             const analysisReport = await aiAnalysisService.analyzeContent(transcript);
 
             // Step 3: Generate design prompt
-            console.log(`[${videoId}] Generating design prompt...`);
+            await updateStep('Generating design prompt...');
             const designPrompt = await aiAnalysisService.generateDesignPrompt(analysisReport);
 
             // Step 4: Generate image
-            console.log(`[${videoId}] Generating image...`);
+            await updateStep('Generating image...');
             const imageUrl = await imageGenerationService.generateImage(designPrompt);
 
             // Step 5: Save infographic
+            await updateStep('Saving...');
             const infographic = await prisma.infographic.update({
                 where: { videoId },
                 data: {
@@ -134,13 +154,19 @@ export class InfographicService {
                 },
             });
 
-            console.log(`[${videoId}] Infographic completed!`);
+            await updateStep('Completed!');
             return infographic;
         } catch (error) {
             await prisma.infographic.update({
                 where: { videoId },
                 data: { status: 'FAILED' },
             });
+            if (jobId) {
+                await prisma.processingJob.update({
+                    where: { id: jobId },
+                    data: { currentStep: 'Failed' },
+                });
+            }
             throw error;
         }
     }

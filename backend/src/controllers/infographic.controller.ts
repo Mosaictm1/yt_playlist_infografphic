@@ -5,7 +5,20 @@ import { z } from 'zod';
 const generateSchema = z.object({
     playlistId: z.string().uuid(),
     videoIds: z.array(z.string().uuid()).min(1, 'At least one video must be selected'),
+    options: z.object({
+        language: z.enum(['ar', 'en']).default('ar'),
+        orientation: z.enum(['landscape', 'portrait', 'square']).default('landscape'),
+        detailLevel: z.enum(['concise', 'standard', 'detailed']).default('standard'),
+        customDescription: z.string().optional(),
+    }).optional(),
 });
+
+export interface InfographicOptions {
+    language: 'ar' | 'en';
+    orientation: 'landscape' | 'portrait' | 'square';
+    detailLevel: 'concise' | 'standard' | 'detailed';
+    customDescription?: string;
+}
 
 export class InfographicController {
     /**
@@ -14,7 +27,7 @@ export class InfographicController {
      */
     async generate(req: Request, res: Response) {
         try {
-            const { playlistId, videoIds } = generateSchema.parse(req.body);
+            const { playlistId, videoIds, options } = generateSchema.parse(req.body);
 
             // Get API keys from middleware (based on user plan)
             const apiKeys = req.apiKeys;
@@ -29,7 +42,7 @@ export class InfographicController {
             const job = await infographicService.createJob(playlistId, videoIds, {
                 geminiApiKey: apiKeys.geminiApiKey,
                 atlasCloudApiKey: apiKeys.atlasCloudApiKey,
-            });
+            }, options);
 
             res.status(202).json({
                 success: true,

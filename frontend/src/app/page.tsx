@@ -21,7 +21,9 @@ import {
     InfographicGallery,
     LoadingState,
     ProgressBar,
-    ProcessingSteps
+    ProcessingSteps,
+    CustomizeModal,
+    InfographicOptions
 } from '@/components';
 import { Sparkles, ArrowLeft, Settings, LogOut, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -54,6 +56,7 @@ function HomeContent() {
     const [currentJob, setCurrentJob] = useState<ProcessingJob | null>(null);
     const [infographics, setInfographics] = useState<Infographic[]>([]);
     const [isRestoring, setIsRestoring] = useState(true);
+    const [showCustomizeModal, setShowCustomizeModal] = useState(false);
 
     // Update URL when playlist changes
     const updateUrl = useCallback((playlistId?: string, jobId?: string) => {
@@ -114,10 +117,11 @@ function HomeContent() {
 
     // Generate infographics mutation
     const generateMutation = useMutation({
-        mutationFn: ({ playlistId, videoIds }: { playlistId: string; videoIds: string[] }) =>
-            generateInfographics(playlistId, videoIds),
+        mutationFn: ({ playlistId, videoIds, options }: { playlistId: string; videoIds: string[]; options?: InfographicOptions }) =>
+            generateInfographics(playlistId, videoIds, options),
         onSuccess: (job) => {
             setCurrentJob(job);
+            setShowCustomizeModal(false);
             if (playlist) {
                 updateUrl(playlist.id, job.id);
             }
@@ -155,11 +159,18 @@ function HomeContent() {
         extractMutation.mutate(url);
     };
 
-    const handleGenerate = () => {
+    const handleOpenCustomizeModal = () => {
+        if (selectedVideoIds.length > 0) {
+            setShowCustomizeModal(true);
+        }
+    };
+
+    const handleGenerateWithOptions = (options: InfographicOptions) => {
         if (playlist && selectedVideoIds.length > 0) {
             generateMutation.mutate({
                 playlistId: playlist.id,
                 videoIds: selectedVideoIds,
+                options,
             });
         }
     };
@@ -351,7 +362,7 @@ function HomeContent() {
                                 videos={playlist.videos}
                                 selectedIds={selectedVideoIds}
                                 onSelectionChange={setSelectedVideoIds}
-                                onGenerate={handleGenerate}
+                                onGenerate={handleOpenCustomizeModal}
                                 isGenerating={generateMutation.isPending || currentJob?.status === 'PROCESSING'}
                             />
 
@@ -361,6 +372,14 @@ function HomeContent() {
                     )}
                 </AnimatePresence>
             </div>
+
+            {/* Customize Modal */}
+            <CustomizeModal
+                isOpen={showCustomizeModal}
+                onClose={() => setShowCustomizeModal(false)}
+                onGenerate={handleGenerateWithOptions}
+                isGenerating={generateMutation.isPending}
+            />
 
             {/* Footer */}
             <footer className="mt-auto py-6 border-t border-white/10">

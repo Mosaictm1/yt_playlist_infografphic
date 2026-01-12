@@ -29,11 +29,13 @@ export class TranscriptService {
      */
     async getTranscript(videoUrl: string): Promise<string> {
         try {
-            console.log(`[Transcript] Fetching transcript for: ${videoUrl}`);
+            // Clean the URL - remove playlist parameters that cause issues
+            const cleanUrl = this.cleanVideoUrl(videoUrl);
+            console.log(`[Transcript] Fetching transcript for: ${cleanUrl}`);
 
             const response = await axios.post<{ data: TranscriptSegment[] }[]>(
                 `${this.scraperUrl}?token=${this.apifyToken}`,
-                { videoUrl },
+                { videoUrl: cleanUrl },
                 { timeout: 120000 }
             );
 

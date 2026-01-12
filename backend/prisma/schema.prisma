@@ -90,6 +90,7 @@ model ProcessingJob {
   currentStep    String?  // Current processing step: transcript, analyze, design, image
   currentVideoId String?  // ID of video currently being processed
   error          String?
+  options        Json?    // Customization options (language, orientation, detailLevel, customDescription)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

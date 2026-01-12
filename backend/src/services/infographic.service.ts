@@ -10,28 +10,42 @@ export interface ApiKeys {
     atlasCloudApiKey: string;
 }
 
+// Interface for infographic customization options
+export interface InfographicOptions {
+    language: 'ar' | 'en';
+    orientation: 'landscape' | 'portrait' | 'square';
+    detailLevel: 'concise' | 'standard' | 'detailed';
+    customDescription?: string;
+}
+
 export class InfographicService {
     // In-memory storage for job API keys (cleared after job completes)
     private jobApiKeys: Map<string, ApiKeys> = new Map();
+    private jobOptions: Map<string, InfographicOptions> = new Map();
 
     /**
      * Create a processing job for selected videos
      * @param playlistId - The playlist ID
      * @param videoIds - Array of video IDs to process
      * @param apiKeys - API keys to use for this job (from user or system based on plan)
+     * @param options - Customization options for the infographic
      */
-    async createJob(playlistId: string, videoIds: string[], apiKeys: ApiKeys) {
+    async createJob(playlistId: string, videoIds: string[], apiKeys: ApiKeys, options?: InfographicOptions) {
         const job = await prisma.processingJob.create({
             data: {
                 playlistId,
                 videoIds,
                 status: 'PENDING',
                 progress: 0,
+                options: options || null,
             },
         });
 
-        // Store API keys for this job in memory
+        // Store API keys and options for this job in memory
         this.jobApiKeys.set(job.id, apiKeys);
+        if (options) {
+            this.jobOptions.set(job.id, options);
+        }
 
         // Start processing in background
         this.processJob(job.id).catch(console.error);
@@ -74,7 +88,8 @@ export class InfographicService {
                     data: { currentVideoId: videoId, currentStep: 'starting' },
                 });
 
-                await this.generateInfographic(videoId, jobId, apiKeys);
+                const options = this.jobOptions.get(jobId);
+                await this.generateInfographic(videoId, jobId, apiKeys, options);
                 processedCount++;
 
                 // Update progress
@@ -99,8 +114,9 @@ export class InfographicService {
             }
         }
 
-        // Clean up API keys from memory
+        // Clean up API keys and options from memory
         this.jobApiKeys.delete(jobId);
+        this.jobOptions.delete(jobId);
 
         // Update job status to completed
         await prisma.processingJob.update({
@@ -117,7 +133,7 @@ export class InfographicService {
     /**
      * Generate infographic for a single video
      */
-    async generateInfographic(videoId: string, jobId?: string, apiKeys?: ApiKeys) {
+    async generateInfographic(videoId: string, jobId?: string, apiKeys?: ApiKeys, options?: InfographicOptions) {
         // Helper to update current step
         const updateStep = async (step: string) => {
             if (jobId) {
@@ -161,11 +177,11 @@ export class InfographicService {
 
             // Step 2: Analyze content
             await updateStep('Analyzing content...');
-            const analysisReport = await aiAnalysisService.analyzeContent(transcript, apiKeys.geminiApiKey);
+            const analysisReport = await aiAnalysisService.analyzeContent(transcript, apiKeys.geminiApiKey, options);
 
             // Step 3: Generate design prompt
             await updateStep('Generating design prompt...');
-            const designPrompt = await aiAnalysisService.generateDesignPrompt(analysisReport, apiKeys.geminiApiKey);
+            const designPrompt = await aiAnalysisService.generateDesignPrompt(analysisReport, apiKeys.geminiApiKey, options);
 
             // Step 4: Generate image
             await updateStep('Generating image...');

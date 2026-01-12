@@ -71,6 +71,13 @@ export interface ApiResponse<T> {
     error?: string;
 }
 
+export interface InfographicOptions {
+    language: 'ar' | 'en';
+    orientation: 'landscape' | 'portrait' | 'square';
+    detailLevel: 'concise' | 'standard' | 'detailed';
+    customDescription?: string;
+}
+
 // API Functions
 export const extractPlaylist = async (url: string): Promise<Playlist> => {
     const response = await api.post<ApiResponse<Playlist>>('/playlist/extract', { url });
@@ -90,11 +97,13 @@ export const getPlaylist = async (id: string): Promise<Playlist> => {
 
 export const generateInfographics = async (
     playlistId: string,
-    videoIds: string[]
+    videoIds: string[],
+    options?: InfographicOptions
 ): Promise<ProcessingJob> => {
     const response = await api.post<ApiResponse<ProcessingJob>>('/infographic/generate', {
         playlistId,
         videoIds,
+        options,
     });
     if (!response.data.success || !response.data.data) {
         throw new Error(response.data.error || 'Failed to start generation');

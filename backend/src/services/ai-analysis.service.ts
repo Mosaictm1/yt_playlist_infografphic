@@ -1,4 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
+import { env } from '../config/env.js';
 
 // Interface for infographic customization options
 export interface InfographicOptions {
@@ -9,29 +11,67 @@ export interface InfographicOptions {
 }
 
 export class AIAnalysisService {
-    private readonly model: string = 'gemini-2.5-flash';
+    private readonly geminiModel: string = 'gemini-2.5-flash';
+    private readonly openaiModel: string = 'gpt-4o-mini';
+
+    /**
+     * Call Gemini API with fallback to OpenAI
+     */
+    private async generateWithFallback(prompt: string, geminiApiKey: string): Promise<string> {
+        // Try Gemini first
+        try {
+            const genAI = new GoogleGenerativeAI(geminiApiKey);
+            const model = genAI.getGenerativeModel({ model: this.geminiModel });
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            console.log('[AI] Using Gemini successfully');
+            return response.text();
+        } catch (geminiError: any) {
+            console.warn('[AI] Gemini failed:', geminiError.message);
+
+            // Fallback to OpenAI
+            const openaiKey = env.OPENAI_API_KEY;
+            if (!openaiKey) {
+                console.error('[AI] No OpenAI API key available for fallback');
+                throw geminiError;
+            }
+
+            try {
+                console.log('[AI] Falling back to OpenAI...');
+                const openai = new OpenAI({ apiKey: openaiKey });
+                const completion = await openai.chat.completions.create({
+                    model: this.openaiModel,
+                    messages: [{ role: 'user', content: prompt }],
+                    max_tokens: 2000,
+                });
+
+                const text = completion.choices[0]?.message?.content || '';
+                console.log('[AI] OpenAI fallback successful');
+                return text;
+            } catch (openaiError: any) {
+                console.error('[AI] OpenAI fallback also failed:', openaiError.message);
+                throw openaiError;
+            }
+        }
+    }
 
     /**
      * Analyze transcript and extract key points
      */
     async analyzeContent(transcript: string, geminiApiKey: string, options?: InfographicOptions): Promise<string> {
-        try {
-            const genAI = new GoogleGenerativeAI(geminiApiKey);
-            const model = genAI.getGenerativeModel({ model: this.model });
+        const language = options?.language || 'ar';
+        const detailLevel = options?.detailLevel || 'standard';
 
-            const language = options?.language || 'ar';
-            const detailLevel = options?.detailLevel || 'standard';
+        // Adjust number of points based on detail level
+        let pointsCount = '3-5';
+        if (detailLevel === 'concise') {
+            pointsCount = '2-3';
+        } else if (detailLevel === 'detailed') {
+            pointsCount = '5-7';
+        }
 
-            // Adjust number of points based on detail level
-            let pointsCount = '3-5';
-            if (detailLevel === 'concise') {
-                pointsCount = '2-3';
-            } else if (detailLevel === 'detailed') {
-                pointsCount = '5-7';
-            }
-
-            const prompt = language === 'ar'
-                ? `قم بإعطائي تقرير مفصل لنقاط الإفادة التي تم ذكرها في هذا النص:
+        const prompt = language === 'ar'
+            ? `قم بإعطائي تقرير مفصل لنقاط الإفادة التي تم ذكرها في هذا النص:
 
 ${transcript}
 
@@ -42,7 +82,7 @@ ${transcript}
 4. الخلاصة في سطر واحد
 
 اجعل التقرير موجزًا ومفيدًا للاستخدام في تصميم Infographic.`
-                : `Provide a detailed report of the key points mentioned in this text:
+            : `Provide a detailed report of the key points mentioned in this text:
 
 ${transcript}
 
@@ -54,45 +94,34 @@ I want:
 
 Make the report concise and useful for designing an Infographic.`;
 
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-
-            return response.text();
-        } catch (error) {
-            console.error('Error analyzing content:', error);
-            throw error;
-        }
+        return this.generateWithFallback(prompt, geminiApiKey);
     }
 
     /**
      * Generate infographic design prompt
      */
     async generateDesignPrompt(analysisReport: string, geminiApiKey: string, options?: InfographicOptions): Promise<string> {
-        try {
-            const genAI = new GoogleGenerativeAI(geminiApiKey);
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const orientation = options?.orientation || 'landscape';
+        const language = options?.language || 'ar';
+        const customDescription = options?.customDescription || '';
 
-            const orientation = options?.orientation || 'landscape';
-            const language = options?.language || 'ar';
-            const customDescription = options?.customDescription || '';
+        // Map orientation to aspect ratio
+        const orientationMap = {
+            landscape: 'horizontal (16:9 aspect ratio)',
+            portrait: 'vertical (9:16 aspect ratio)',
+            square: 'square (1:1 aspect ratio)',
+        };
 
-            // Map orientation to aspect ratio
-            const orientationMap = {
-                landscape: 'horizontal (16:9 aspect ratio)',
-                portrait: 'vertical (9:16 aspect ratio)',
-                square: 'square (1:1 aspect ratio)',
-            };
+        const orientationDesc = orientationMap[orientation];
+        const languageNote = language === 'ar'
+            ? 'The text in the infographic should be in Arabic (right-to-left).'
+            : 'The text in the infographic should be in English.';
 
-            const orientationDesc = orientationMap[orientation];
-            const languageNote = language === 'ar'
-                ? 'The text in the infographic should be in Arabic (right-to-left).'
-                : 'The text in the infographic should be in English.';
+        const customNote = customDescription
+            ? `\n\nUser's custom instructions: ${customDescription}`
+            : '';
 
-            const customNote = customDescription
-                ? `\n\nUser's custom instructions: ${customDescription}`
-                : '';
-
-            const prompt = `Based on this analysis report, generate a detailed infographic design prompt in English that can be used with an AI image generator.
+        const prompt = `Based on this analysis report, generate a detailed infographic design prompt in English that can be used with an AI image generator.
 
 Analysis Report:
 ${analysisReport}
@@ -110,14 +139,7 @@ The prompt should be detailed enough to generate a beautiful, informative infogr
 Start directly with the design description, no introduction needed.
 Keep it under 500 words.`;
 
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-
-            return response.text();
-        } catch (error) {
-            console.error('Error generating design prompt:', error);
-            throw error;
-        }
+        return this.generateWithFallback(prompt, geminiApiKey);
     }
 }
 

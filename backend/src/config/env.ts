@@ -17,6 +17,7 @@ export const env = {
     // External APIs
     APIFY_API_TOKEN: process.env.APIFY_API_TOKEN || '',
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
     ATLAS_CLOUD_API_KEY: process.env.ATLAS_CLOUD_API_KEY || '',
 
     // Telegram (optional)

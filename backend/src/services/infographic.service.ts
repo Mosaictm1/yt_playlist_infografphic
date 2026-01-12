@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 import { transcriptService } from './transcript.service.js';
 import { aiAnalysisService } from './ai-analysis.service.js';
 import { imageGenerationService } from './image-generation.service.js';
-import { Status } from '@prisma/client';
+import { Status, Prisma } from '@prisma/client';
 
 // Interface for API keys passed from middleware
 export interface ApiKeys {
@@ -37,7 +37,7 @@ export class InfographicService {
                 videoIds,
                 status: 'PENDING',
                 progress: 0,
-                options: options ? options : undefined,
+                options: options ? (options as unknown as Prisma.InputJsonValue) : undefined,
             },
         });
 

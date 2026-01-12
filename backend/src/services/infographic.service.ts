@@ -37,7 +37,7 @@ export class InfographicService {
                 videoIds,
                 status: 'PENDING',
                 progress: 0,
-                options: options || null,
+                options: options ? options : undefined,
             },
         });
 

@@ -25,6 +25,23 @@ export class TranscriptService {
     }
 
     /**
+     * Clean video URL by removing playlist parameters
+     */
+    private cleanVideoUrl(url: string): string {
+        try {
+            const urlObj = new URL(url);
+            // Keep only the video ID parameter
+            const videoId = urlObj.searchParams.get('v');
+            if (videoId) {
+                return `https://www.youtube.com/watch?v=${videoId}`;
+            }
+            return url;
+        } catch {
+            return url;
+        }
+    }
+
+    /**
      * Get transcript for a YouTube video
      */
     async getTranscript(videoUrl: string): Promise<string> {
